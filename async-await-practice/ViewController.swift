@@ -33,6 +33,26 @@ class ViewController: UIViewController {
         
     }
     
+    func asyncDownloadData(from url: URL) async throws -> Data {
+        // throwがない場合は->withCheckedContinuation { }
+        try await withCheckedThrowingContinuation { continuation in
+            callbackDownloadData(from: url) { result in
+//                switch result {
+//                    case .failure(let error):
+//                        continuation.resume(throwing: error)
+//                    case .success(let data):
+//                        continuation.resume(returning: data)
+//                }
+                continuation.resume(with: result)
+            }
+        }
+    }
+    
+    func callbackDownloadData(from url: URL,
+                              completion: @escaping (Result<Data, Error>) -> Void) {
+        
+    }
+    
     func fetchUserIcon(for id: Int) async throws -> Data {
         let url = URL(string: "https://koherent.org/fake-service/api/user?id=\(id)")!
         let data = try await downloadData2(from: url)

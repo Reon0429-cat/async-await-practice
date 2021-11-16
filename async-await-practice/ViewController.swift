@@ -42,6 +42,45 @@ class ViewController: UIViewController {
         
     }
     
+    func asyncFetchUserIcons(for ids: [Int]) async throws -> [Int: Data] {
+        try await withThrowingTaskGroup(of: (Int, Data).self) { group in
+            for id in ids {
+                group.addTask {
+                    let url = URL(string: "https://koherent.org/fake-service/data/user-icons/small/\(id).png")!
+                    return try await (id, self.downloadData2(from: url))
+                }
+            }
+            var icons = [Int: Data]()
+            for try await (id, icon) in group {
+                icons[id] = icon
+            }
+            return icons
+        }
+    }
+    
+    func fetchUserIcons(for ids: [Int],
+                        completion: @escaping (Result<[Data], Error>) -> Void) {
+        var results = [Data]()
+        let group: DispatchGroup = .init()
+        for id in ids {
+            let url = URL(string: "https://koherent.org/fake-service/data/user-icons/small/\(id).png")!
+            group.enter()
+            downloadData(from: url) { icon in
+                results.append(icon)
+                group.leave()
+            }
+        }
+        
+        group.notify(queue: .global()) {
+            do {
+                let icons = try results.map { try $0.get() }
+                completion(.success(icons))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+    
     // 並行処理 (async)
     func awaitFetchUserIcons(for id: Int) async throws -> (small: Data, large: Data) {
         let smallURL = URL(string: "https://koherent.org/fake-service/data/user-icons/small/\(id).png")!

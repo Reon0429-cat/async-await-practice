@@ -29,8 +29,59 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        // 同期的なメソッドの中でasyncなfuncを呼び出す
+        Task {
+            do {
+                let user = try await fetchUser2(for: 100)
+                let label = UILabel()
+                label.text = user.name
+            } catch {
+                print(error)
+            }
+        }
         
-        
+    }
+    
+    // 並行処理 (async)
+    func awaitFetchUserIcons(for id: Int) async throws -> (small: Data, large: Data) {
+        let smallURL = URL(string: "https://koherent.org/fake-service/data/user-icons/small/\(id).png")!
+        let largeURL = URL(string: "https://koherent.org/fake-service/data/user-icons/large/\(id).png")!
+        // ダメな例
+//        let smallIcon = try await downloadData2(from: smallURL)
+//        let largeIcon = try await downloadData2(from: largeURL)
+        async let smallIcon = downloadData2(from: smallURL)
+        async let largeIcon = downloadData2(from: largeURL)
+//        return (small: smallIcon, large: largeIcon)
+        let icons = try await (small: smallIcon, large: largeIcon)
+        return icons
+    }
+    
+    // 並行処理 (call back)
+    func fetchUserIcons(for id: Int,
+                        completion: @escaping (Result<(small: Data, large: Data), Error>) -> Void) {
+        let smallURL = URL(string: "https://koherent.org/fake-service/data/user-icons/small/\(id).png")!
+        let largeURL = URL(string: "https://koherent.org/fake-service/data/user-icons/large/\(id).png")!
+        let group: DispatchGroup = .init()
+        var smallIcon: Data!
+        group.enter()
+        downloadData(from: smallURL) { icon in
+            smallIcon = icon
+            group.leave()
+        }
+        var largeIcon: Data!
+        group.enter()
+        downloadData(from: largeURL) { icon in
+            largeIcon = icon
+            group.leave()
+        }
+        group.notify(queue: .global()) {
+            do {
+                let icons = try (small: smallIcon.get(), large: largeIcon.get())
+                completion(.success(icons))
+            } catch {
+                completion(.failure(error))
+            }
+        }
     }
     
     func asyncDownloadData(from url: URL) async throws -> Data {

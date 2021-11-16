@@ -11,6 +11,10 @@ struct User: Decodable {
     let name: String
 }
 
+enum SomeError: Error {
+    case invalidURL(url: URL)
+}
+
 class ViewController: UIViewController {
 
     override func viewDidLoad() {
@@ -18,6 +22,23 @@ class ViewController: UIViewController {
         
         
         
+    }
+    
+    func fetchUser2(for id: Int) async throws -> User {
+        do {
+            let data = try await downloadData2(from: URL(string: ""))
+            let user = try! JSONDecoder().decode(User.self, from: data)
+            return user
+        } catch {
+            throw error
+        }
+    }
+    
+    func downloadData2(from url: URL?) async throws -> Data {
+        if let url = url {
+            throw SomeError.invalidURL(url: url)
+        }
+        return Data()
     }
     
     func fetchUser(for id: Int) async -> User {
